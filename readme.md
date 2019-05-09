@@ -39,3 +39,30 @@
 10. You can see list of scenarios' locations in GoogleMaps: https://goo.gl/maps/yLQ84Y4TiR9QwanWA
 
 11. See https://graphql.org/learn/ for more info about querying in GraphQL.
+
+12. Query examples with arguments including getClosestPOI:
+```
+query getPOIs($startPosition: [Float], $endPosition: [Float]) {
+  pois(startPosition: $startPosition, endPosition: $endPosition) {
+    pointOfInterestID
+    name
+    position
+  }
+}
+
+query getClosestPOI($position: [Float]!) {
+  poi(position: $position) {
+    name
+    position
+  }
+}
+```
+```
+{
+  "position": [
+    38.565325, -8.466434
+  ],
+  "startPosition": [41.607319, -8.808319],
+  "endPosition": [41.865909, -6.516725]
+}
+```
