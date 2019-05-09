@@ -6,7 +6,7 @@ const cartesianPlane = require('./cartesianPlane.js');
 // define GraphQL schema
 const schema = buildSchema(`
     type Query {
-        poi(pointOfInterestID: Int!): PointOfInterest
+        poi(position: [Float]!): PointOfInterest
         pois(startPosition: [Float], endPosition: [Float]): [PointOfInterest]
     }
 
@@ -186,6 +186,12 @@ const testTrips = [
         expectedPOIsIDs: [4,5],
         startPoint: [39.526962,-8.102650],
         endPoint: [39.528796, -7.848990]
+    },
+    {
+        description: 'Norte de Portugal - to catch 3 north POIs: Forte da Lagarteira, Parque de campismo de Rio de Onor and Castelo de Guimarães',
+        expectedPOIsIDs: [7,9,10],
+        startPoint: [41.607319, -8.808319],
+        endPoint: [41.865909, -6.516725]
     }
 ];
 
@@ -200,28 +206,49 @@ const testTrips = [
 // 1/4 has been set as default
 const tripRange = 0.25;
 
-const getPois = function(args) {
+const getPOIs = function(args) {
     if(args.startPosition && args.endPosition) {
+        // two points are passed to query: filter POIs along line between them
         const startPosition = args.startPosition;
         const endPosition = args.endPosition;
         const lineEquationParamA = cartesianPlane.lineEquationParamA(startPosition, endPosition);
         const lineEquationParamB = cartesianPlane.lineEquationParamB();
         const lineEquationParamC = cartesianPlane.lineEquationParamC(startPosition, endPosition);
         const tripDistance = cartesianPlane.pointsDistance(startPosition, endPosition);
-        // filter POIs within given distance from straight line between start and end points of trip
 
-        // distance units is decimal degrees and could be
+        // filter POIs within given distance from straight line between start and end points of trip
+        // unit of pointDistanceFromLine and tripDistance is decimal degree and doesn't need to be
+        // calculated to [km] as it's used only to filter POIs by checking their distance from trip line
+        // as a proportion of its length
         return poisData.filter(poi => {
             return cartesianPlane.pointDistanceFromLine(lineEquationParamA, lineEquationParamB, lineEquationParamC, poi.position) <= tripDistance*tripRange;
         })
+    } else if (args.startPosition) {
+        // one point is passed: filter closest POI to it
+        const startPosition = args.startPosition;
+        // due to schema expected: [PointOfInnterest] need to return array with one POI
+        return Array.of(poisData.reduce((closest, poi) => {
+            return cartesianPlane.pointsDistance(startPosition, closest.position) < cartesianPlane.pointsDistance(startPosition, poi.position) ? closest : poi;
+        }));
     } else {
-        // get all points
+        // no argument is passed: get all points
         return poisData;
     }
+};
 
-}
+const getClosestPOI = function(args) {
+    if (args.position) {
+        // one point is passed: filter closest POI to it
+        const position = args.position;
+        return poisData.reduce((closest, poi) => {
+            return cartesianPlane.pointsDistance(position, closest.position) < cartesianPlane.pointsDistance(position, poi.position) ? closest : poi;
+        });
+    }
+};
+
 const root = {
-    pois: getPois
+    poi: getClosestPOI,
+    pois: getPOIs
 };
 
 // create an express server with graphQL endpoint
